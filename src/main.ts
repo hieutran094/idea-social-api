@@ -4,10 +4,12 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/transform.interceptor';
 import { initDocumentation } from './documentation';
+import { ValidationPipe } from './shared/validation.pipe';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
+  app.useGlobalPipes(new ValidationPipe());
   app.useGlobalInterceptors(new TransformInterceptor());
   initDocumentation(app, {
     version: '1.0',
