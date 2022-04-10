@@ -2,8 +2,6 @@
 name: Auto deploy to Development
 
 on:
-  push:
-    branches: ['master']
   pull_request:
     branches: [master]
     types: [closed]
