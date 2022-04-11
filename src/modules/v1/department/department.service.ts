@@ -1,7 +1,7 @@
 import { Injectable, Inject, HttpException, HttpStatus } from '@nestjs/common';
 import { DepartmentEntity } from 'src/entities/department.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityRepository, Repository } from 'typeorm';
+import { EntityRepository, Repository, Like } from 'typeorm';
 import { REQUEST } from '@nestjs/core';
 import { BaseService } from 'src/common/base.service';
 import { plainToClass, plainToClassFromExist } from 'class-transformer';
