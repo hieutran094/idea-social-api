@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Query, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Query, Post, Put,Delete, UseGuards } from '@nestjs/common';
 import { DepartmentService } from './department.service';
 import { AuthGuard } from 'src/modules/v1/auth/guard/auth.guard';
 import { RolesGuard } from 'src/modules/v1/auth/guard/role.guard';
@@ -33,5 +33,9 @@ export class DepartmentController {
   @Role(ERole.root, ERole.admin)
   async updateOne(@Param('id') id: number, @Body() dto: DepartmentUpdateDTO) {
     return await this.service.updateOne(id, dto);
+  }
+  @Delete(':id')
+  async deleteOne(@Param('id') id: number) {
+    return await this.service.deleteOne(id);
   }
 }
