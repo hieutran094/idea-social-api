@@ -1,11 +1,21 @@
-import { IsNotEmpty, IsInt, IsString, IsOptional, IsDateString } from 'class-validator';
+import { IsNotEmpty, IsInt, IsString, IsOptional, ValidateIf, IsNumberString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class IdeaCreateDTO {
   @ApiProperty({ required: true })
   @IsNotEmpty()
-  @IsInt()
+  @IsNumberString()
   topic_id: number;
+
+  @ValidateIf((q) => q.image_id && q.image_id.trim() !== '')
+  @IsNumberString()
+  @ApiProperty({ type: 'string', format: 'binary', required: false })
+  image_id: string | object | null;
+
+  @ValidateIf((q) => q.document_id && q.document_id.trim() !== '')
+  @IsNumberString()
+  @ApiProperty({ type: 'string', format: 'binary', required: false })
+  document_id: string | object | null;
 
   @IsOptional()
   @IsString()
@@ -18,7 +28,7 @@ export class IdeaCreateDTO {
   description: string | null;
 
   @IsOptional()
-  @IsInt()
+  @IsNumberString()
   @ApiProperty({ required: false })
   is_incognito: number;
 }

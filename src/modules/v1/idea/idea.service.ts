@@ -8,6 +8,7 @@ import { REQUEST } from '@nestjs/core';
 import { BaseService } from 'src/common/base.service';
 import { plainToClass, plainToClassFromExist } from 'class-transformer';
 import { IdeaCreateDTO, IdeaUpdateDTO } from './dto/idea.dto';
+import { EVote } from 'src/enum/vote.enum';
 
 @Injectable()
 export class IdeaService extends BaseService<IdeaEntity> {
@@ -83,5 +84,40 @@ export class IdeaService extends BaseService<IdeaEntity> {
     } catch (e) {
       throw new HttpException(e, HttpStatus.BAD_REQUEST);
     }
+  }
+
+  async upVote(id: number) {
+    let idea = await this.repo.findOne({
+      where: { id },
+      relations: ['author', 'upVotes', 'downVotes', 'comments'],
+    });
+    return await this.vote(idea, EVote.UP);
+  }
+
+  async downVote(id: number) {
+    let idea = await this.repo.findOne({
+      where: { id },
+      relations: ['author', 'upVotes', 'downVotes', 'comments'],
+    });
+    return await this.vote(idea, EVote.DOWN);
+  }
+  private async vote(idea: IdeaEntity, vote: EVote) {
+    const opposite = vote === EVote.UP ? EVote.DOWN : EVote.UP;
+    const user = await this.connection.getRepository(UserEntity).findOne({ where: { id: this.request.user.id, delete_flag: 0 } });
+    if (idea[opposite].filter((voter) => voter.id === user.id).length > 0 && idea[vote].filter((voter) => voter.id === user.id).length === 0) {
+      idea[opposite] = idea[opposite].filter((voter) => voter.id !== user.id);
+      idea[vote].push(user);
+      await this.repo.save(idea);
+    } else if (idea[opposite].filter((voter) => voter.id === user.id).length > 0 || idea[vote].filter((voter) => voter.id === user.id).length > 0) {
+      idea[opposite] = idea[opposite].filter((voter) => voter.id !== user.id);
+      idea[vote] = idea[vote].filter((voter) => voter.id !== user.id);
+      await this.repo.save(idea);
+    } else if (idea[vote].filter((voter) => voter.id === user.id).length < 1) {
+      idea[vote].push(user);
+      await this.repo.save(idea);
+    } else {
+      throw new HttpException('Unable to cast vote', HttpStatus.BAD_REQUEST);
+    }
+    return idea;
   }
 }
