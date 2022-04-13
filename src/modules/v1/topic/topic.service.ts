@@ -16,9 +16,8 @@ export class TopicService extends BaseService<TopicEntity> {
   override async getOne(id: number): Promise<TopicEntity> {
     return await this.repo
       .createQueryBuilder('topic')
-      .leftJoinAndSelect('topic.ideas', 'ideas')
+      .leftJoinAndSelect('topic.ideas', 'ideas', 'ideas.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .where('topic.id = :id', { id })
-      .andWhere('topic.delete_flag = :deleteFlag')
       .andWhere('topic.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .getOne();
   }
