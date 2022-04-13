@@ -1,4 +1,15 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn, Index, ManyToOne, OneToOne, JoinColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+  Index,
+  ManyToOne,
+  OneToOne,
+  AfterLoad,
+  JoinColumn,
+} from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, MaxLength, IsOptional, IsEmpty, IsInt } from 'class-validator';
 import { UserEntity } from './user.entity';
@@ -50,4 +61,10 @@ export class FileEntity {
   })
   @JoinColumn({ name: 'creator_id' })
   creator: UserEntity;
+
+  @AfterLoad()
+  getSource_Url() {
+    const s3Source = process.env.AWS_S3_ENDPOINT + '/' + this.source_url;
+    this.source_url = this.source_url ? s3Source : 'https://i.picsum.photos/id/1021/500/300.jpg';
+  }
 }
