@@ -24,8 +24,15 @@ export class CommentService extends BaseService<CommentEntity> {
         delete entity.creator_id;
       }
       if (entity.idea_id) {
-        const idea = await this.connection.getRepository(IdeaEntity).findOne({ where: { id: entity.idea_id, delete_flag: 0 } });
+        const idea = await this.connection
+          .getRepository(IdeaEntity)
+          .createQueryBuilder('idea')
+          .leftJoinAndSelect('idea.topic', 'topic', 'topic.close_date > CURRENT_TIMESTAMP')
+          .where('idea.id = :ideaId', { ideaId: entity.idea_id })
+          .andWhere('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
+          .getOne();
         if (!idea) throw new HttpException('Idea not found', HttpStatus.BAD_REQUEST);
+        if (!idea.topic) throw new HttpException('Cannot comment to idea in closed topic.', HttpStatus.BAD_REQUEST);
         entity.idea = idea;
         delete entity.idea_id;
       }
@@ -33,6 +40,7 @@ export class CommentService extends BaseService<CommentEntity> {
       await this.repo.save(entity);
       return { message: 'Created successfully' };
     } catch (e) {
+      if (e instanceof HttpException) throw e;
       throw new HttpException(e, HttpStatus.BAD_REQUEST);
     }
   }
