@@ -47,10 +47,10 @@ export class IdeaController {
   @ApiConsumes('multipart/form-data')
   async createOne(@UploadedFiles() files: { document_id?: any; image_id?: any }, @Body() dto: IdeaCreateDTO) {
     if (files && (files.image_id || files.document_id)) {
-      let fileArr = [];
+      const fileArr = [];
       if (Array.isArray(files.image_id)) fileArr.push(files.image_id[0]);
       if (Array.isArray(files.document_id)) fileArr.push(files.document_id[0]);
-      let filePromises = fileArr.map(async (e) => {
+      const filePromises = fileArr.map(async (e) => {
         const mime = e.mimetype.split('/')[1];
         const mines = e.fieldname === 'image_id' ? ['jpeg', 'jpg', 'png', 'gif'] : ['pdf', 'docx', 'doc', 'txt', 'xlsx', 'xls', 'pptx', 'ppt'];
         const type = e.fieldname === 'image_id' ? 'image' : 'document';

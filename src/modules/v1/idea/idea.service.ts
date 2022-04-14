@@ -16,21 +16,42 @@ export class IdeaService extends BaseService<IdeaEntity> {
     super(repo, request);
   }
   override async getOne(id: number): Promise<IdeaEntity> {
-    return await this.repo
+    const data = await this.repo
       .createQueryBuilder('idea')
       .leftJoinAndSelect('idea.image', 'image', 'image.delete_flag = :deleteFlag')
       .leftJoinAndSelect('idea.document', 'document', 'document.delete_flag = :deleteFlag')
+      .leftJoinAndSelect('idea.upVotes', 'upVotes')
+      .leftJoinAndSelect('idea.downVotes', 'downVotes')
+      .leftJoinAndSelect('idea.comments', 'comments')
       .where('idea.id = :id', { id })
       .andWhere('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .getOne();
+    if (data) {
+      data.upVoteCount = data.upVotes.length;
+      data.downVoteCount = data.downVotes.length;
+      delete data.upVotes;
+      delete data.downVotes;
+    }
+    return data;
   }
   override async getMany(): Promise<IdeaEntity[]> {
-    return await this.repo
+    const data = await this.repo
       .createQueryBuilder('idea')
       .leftJoinAndSelect('idea.image', 'image', 'image.delete_flag = :deleteFlag')
       .leftJoinAndSelect('idea.document', 'document', 'document.delete_flag = :deleteFlag')
+      .leftJoinAndSelect('idea.upVotes', 'upVotes')
+      .leftJoinAndSelect('idea.downVotes', 'downVotes')
       .andWhere('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .getMany();
+    if (data.length > 0) {
+      data.map((e) => {
+        e.upVoteCount = e.upVotes.length;
+        e.downVoteCount = e.downVotes.length;
+        delete e.upVotes;
+        delete e.downVotes;
+      });
+    }
+    return data;
   }
   override async search(query: any): Promise<any> {
     try {
@@ -40,13 +61,23 @@ export class IdeaService extends BaseService<IdeaEntity> {
         .createQueryBuilder('idea')
         .leftJoinAndSelect('idea.image', 'image', 'image.delete_flag = :deleteFlag')
         .leftJoinAndSelect('idea.document', 'document', 'document.delete_flag = :deleteFlag', { deleteFlag: 0 })
+        .leftJoinAndSelect('idea.upVotes', 'upVotes')
+        .leftJoinAndSelect('idea.downVotes', 'downVotes')
         .where('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
         .skip(limit * (page - 1))
         .take(limit)
         .orderBy('idea.id', 'ASC');
       if (query.keyword) qb.andWhere({ title: Like(`%${query.keyword}%`) });
-      const data = await qb.getManyAndCount();
-      return this.paginateResponse(data, page, limit);
+      const [data, total] = await qb.getManyAndCount();
+      if (data.length > 0) {
+        data.map((e) => {
+          e.upVoteCount = e.upVotes.length;
+          e.downVoteCount = e.downVotes.length;
+          delete e.upVotes;
+          delete e.downVotes;
+        });
+      }
+      return this.paginateResponse([data, total], page, limit);
     } catch (e) {
       throw new InternalServerErrorException(e);
     }
@@ -87,7 +118,7 @@ export class IdeaService extends BaseService<IdeaEntity> {
   }
 
   async upVote(id: number) {
-    let idea = await this.repo.findOne({
+    const idea = await this.repo.findOne({
       where: { id },
       relations: ['author', 'upVotes', 'downVotes', 'comments'],
     });
@@ -95,7 +126,7 @@ export class IdeaService extends BaseService<IdeaEntity> {
   }
 
   async downVote(id: number) {
-    let idea = await this.repo.findOne({
+    const idea = await this.repo.findOne({
       where: { id },
       relations: ['author', 'upVotes', 'downVotes', 'comments'],
     });

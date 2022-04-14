@@ -101,6 +101,8 @@ export class IdeaEntity {
   })
   upVotes: UserEntity[];
 
+  upVoteCount: number;
+
   @ManyToMany((type) => UserEntity, { cascade: true })
   @JoinTable({
     name: 'downvotes',
@@ -114,6 +116,8 @@ export class IdeaEntity {
     },
   })
   downVotes: UserEntity[];
+
+  downVoteCount: number;
 
   @OneToMany((type) => CommentEntity, (comment) => comment.idea)
   comments: CommentEntity[];
