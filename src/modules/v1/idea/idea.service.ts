@@ -1,4 +1,4 @@
-import { Injectable, Inject, HttpException, HttpStatus, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Inject, HttpException, HttpStatus, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { IdeaEntity } from 'src/entities/idea.entity';
 import { TopicEntity } from 'src/entities/topic.entity';
 import { UserEntity } from 'src/entities/user.entity';
@@ -9,28 +9,48 @@ import { BaseService } from 'src/common/base.service';
 import { plainToClass, plainToClassFromExist } from 'class-transformer';
 import { IdeaCreateDTO, IdeaUpdateDTO } from './dto/idea.dto';
 import { EVote } from 'src/enum/vote.enum';
+import { FileService } from 'src/modules/v1/file/file.service';
 
 @Injectable()
 export class IdeaService extends BaseService<IdeaEntity> {
-  constructor(@InjectRepository(IdeaEntity) repo: Repository<IdeaEntity>, @Inject(REQUEST) protected readonly request) {
+  constructor(
+    @InjectRepository(IdeaEntity) repo: Repository<IdeaEntity>,
+    @Inject(REQUEST) protected readonly request,
+    private readonly fileService: FileService,
+  ) {
     super(repo, request);
   }
   override async getOne(id: number): Promise<IdeaEntity> {
-    return await this.repo
+    let data = await this.repo
       .createQueryBuilder('idea')
       .leftJoinAndSelect('idea.image', 'image', 'image.delete_flag = :deleteFlag')
       .leftJoinAndSelect('idea.document', 'document', 'document.delete_flag = :deleteFlag')
+      .leftJoinAndSelect('idea.comments', 'comment', 'comment.delete_flag = :deleteFlag', { deleteFlag: 0 })
+      .leftJoinAndSelect('idea.upVotes', 'upVotes')
+      .leftJoinAndSelect('idea.downVotes', 'downVotes')
+      .leftJoinAndSelect('idea.comments', 'comments')
       .where('idea.id = :id', { id })
       .andWhere('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .getOne();
+    if (data) {
+      data = this.toResponseObject(data);
+    }
+    return data;
   }
   override async getMany(): Promise<IdeaEntity[]> {
-    return await this.repo
+    const data = await this.repo
       .createQueryBuilder('idea')
       .leftJoinAndSelect('idea.image', 'image', 'image.delete_flag = :deleteFlag')
       .leftJoinAndSelect('idea.document', 'document', 'document.delete_flag = :deleteFlag')
+      .leftJoinAndSelect('idea.comments', 'comment', 'comment.delete_flag = :deleteFlag', { deleteFlag: 0 })
+      .leftJoinAndSelect('idea.upVotes', 'upVotes')
+      .leftJoinAndSelect('idea.downVotes', 'downVotes')
       .andWhere('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .getMany();
+    if (data.length > 0) {
+      data.map((e) => this.toResponseObject(e));
+    }
+    return data;
   }
   override async search(query: any): Promise<any> {
     try {
@@ -39,22 +59,60 @@ export class IdeaService extends BaseService<IdeaEntity> {
       const qb = this.repo
         .createQueryBuilder('idea')
         .leftJoinAndSelect('idea.image', 'image', 'image.delete_flag = :deleteFlag')
-        .leftJoinAndSelect('idea.document', 'document', 'document.delete_flag = :deleteFlag', { deleteFlag: 0 })
+        .leftJoinAndSelect('idea.document', 'document', 'document.delete_flag = :deleteFlag')
+        .leftJoinAndSelect('idea.comments', 'comment', 'comment.delete_flag = :deleteFlag', { deleteFlag: 0 })
+        .leftJoinAndSelect('idea.upVotes', 'upVotes')
+        .leftJoinAndSelect('idea.downVotes', 'downVotes')
         .where('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
         .skip(limit * (page - 1))
         .take(limit)
         .orderBy('idea.id', 'ASC');
       if (query.keyword) qb.andWhere({ title: Like(`%${query.keyword}%`) });
-      const data = await qb.getManyAndCount();
-      return this.paginateResponse(data, page, limit);
+      const [data, total] = await qb.getManyAndCount();
+      if (data.length > 0) {
+        data.map((e) => this.toResponseObject(e));
+      }
+      return this.paginateResponse([data, total], page, limit);
     } catch (e) {
       throw new InternalServerErrorException(e);
     }
   }
-  async createOne(dto: IdeaCreateDTO): Promise<IdeaEntity | any> {
+  async createOne(files: any, dto: IdeaCreateDTO): Promise<IdeaEntity | any> {
     try {
+      let topic;
+      if (dto.topic_id) {
+        topic = await this.connection.getRepository(TopicEntity).findOne({ where: { id: dto.topic_id, delete_flag: 0 } });
+        if (!topic) throw new HttpException('Topic not found', HttpStatus.BAD_REQUEST);
+      }
+      if (files && (files.image_id || files.document_id)) {
+        const fileArr = [];
+        if (Array.isArray(files.image_id)) fileArr.push(files.image_id[0]);
+        if (Array.isArray(files.document_id)) fileArr.push(files.document_id[0]);
+        const filePromises = fileArr.map(async (e) => {
+          const mime = e.mimetype.split('/')[1];
+          const mines = e.fieldname === 'image_id' ? ['jpeg', 'jpg', 'png', 'gif'] : ['pdf', 'docx', 'doc', 'txt', 'xlsx', 'xls', 'pptx', 'ppt'];
+          const type = e.fieldname === 'image_id' ? 'image' : 'document';
+          if (!mines.includes(mime)) {
+            throw new BadRequestException(e.fieldname + ` is must be an ${type}`);
+          }
+          if (e.size > process.env.MAX_UPLOAD_SIZE) {
+            throw new BadRequestException(e.fieldname + ' is must be smaller than 5Mb');
+          }
+          const data = await this.fileService.createOneFile(e);
+          if (data.id) {
+            if (e.fieldname === 'image_id') {
+              dto.image_id = data.id;
+            } else if (e.fieldname === 'document_id') {
+              dto.document_id = data.id;
+            }
+          }
+        });
+        await Promise.all(filePromises);
+      }
       const entity = plainToClass(IdeaEntity, dto);
       entity.creator_id = this.request.user.id;
+      entity.topic = topic;
+      delete entity.topic_id;
       if (entity.creator_id) {
         const user = await this.connection.getRepository(UserEntity).findOne({ where: { id: this.request.user.id, delete_flag: 0 } });
         entity.author = user;
@@ -87,7 +145,7 @@ export class IdeaService extends BaseService<IdeaEntity> {
   }
 
   async upVote(id: number) {
-    let idea = await this.repo.findOne({
+    const idea = await this.repo.findOne({
       where: { id },
       relations: ['author', 'upVotes', 'downVotes', 'comments'],
     });
@@ -95,7 +153,7 @@ export class IdeaService extends BaseService<IdeaEntity> {
   }
 
   async downVote(id: number) {
-    let idea = await this.repo.findOne({
+    const idea = await this.repo.findOne({
       where: { id },
       relations: ['author', 'upVotes', 'downVotes', 'comments'],
     });
@@ -118,6 +176,15 @@ export class IdeaService extends BaseService<IdeaEntity> {
     } else {
       throw new HttpException('Unable to cast vote', HttpStatus.BAD_REQUEST);
     }
+    return idea;
+  }
+  private toResponseObject(idea: IdeaEntity) {
+    idea.upVoteCount = idea.upVotes.length;
+    idea.downVoteCount = idea.downVotes.length;
+    idea.commentCount = idea.comments.length;
+    delete idea.upVotes;
+    delete idea.downVotes;
+    delete idea.comments;
     return idea;
   }
 }
