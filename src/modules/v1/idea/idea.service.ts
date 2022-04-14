@@ -1,4 +1,4 @@
-import { Injectable, Inject, HttpException, HttpStatus, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Inject, HttpException, HttpStatus, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { IdeaEntity } from 'src/entities/idea.entity';
 import { TopicEntity } from 'src/entities/topic.entity';
 import { UserEntity } from 'src/entities/user.entity';
@@ -9,10 +9,15 @@ import { BaseService } from 'src/common/base.service';
 import { plainToClass, plainToClassFromExist } from 'class-transformer';
 import { IdeaCreateDTO, IdeaUpdateDTO } from './dto/idea.dto';
 import { EVote } from 'src/enum/vote.enum';
+import { FileService } from 'src/modules/v1/file/file.service';
 
 @Injectable()
 export class IdeaService extends BaseService<IdeaEntity> {
-  constructor(@InjectRepository(IdeaEntity) repo: Repository<IdeaEntity>, @Inject(REQUEST) protected readonly request) {
+  constructor(
+    @InjectRepository(IdeaEntity) repo: Repository<IdeaEntity>,
+    @Inject(REQUEST) protected readonly request,
+    private readonly fileService: FileService,
+  ) {
     super(repo, request);
   }
   override async getOne(id: number): Promise<IdeaEntity> {
@@ -72,10 +77,42 @@ export class IdeaService extends BaseService<IdeaEntity> {
       throw new InternalServerErrorException(e);
     }
   }
-  async createOne(dto: IdeaCreateDTO): Promise<IdeaEntity | any> {
+  async createOne(files: any, dto: IdeaCreateDTO): Promise<IdeaEntity | any> {
     try {
+      let topic;
+      if (dto.topic_id) {
+        topic = await this.connection.getRepository(TopicEntity).findOne({ where: { id: dto.topic_id, delete_flag: 0 } });
+        if (!topic) throw new HttpException('Topic not found', HttpStatus.BAD_REQUEST);
+      }
+      if (files && (files.image_id || files.document_id)) {
+        const fileArr = [];
+        if (Array.isArray(files.image_id)) fileArr.push(files.image_id[0]);
+        if (Array.isArray(files.document_id)) fileArr.push(files.document_id[0]);
+        const filePromises = fileArr.map(async (e) => {
+          const mime = e.mimetype.split('/')[1];
+          const mines = e.fieldname === 'image_id' ? ['jpeg', 'jpg', 'png', 'gif'] : ['pdf', 'docx', 'doc', 'txt', 'xlsx', 'xls', 'pptx', 'ppt'];
+          const type = e.fieldname === 'image_id' ? 'image' : 'document';
+          if (!mines.includes(mime)) {
+            throw new BadRequestException(e.fieldname + ` is must be an ${type}`);
+          }
+          if (e.size > process.env.MAX_UPLOAD_SIZE) {
+            throw new BadRequestException(e.fieldname + ' is must be smaller than 5Mb');
+          }
+          const data = await this.fileService.createOneFile(e);
+          if (data.id) {
+            if (e.fieldname === 'image_id') {
+              dto.image_id = data.id;
+            } else if (e.fieldname === 'document_id') {
+              dto.document_id = data.id;
+            }
+          }
+        });
+        await Promise.all(filePromises);
+      }
       const entity = plainToClass(IdeaEntity, dto);
       entity.creator_id = this.request.user.id;
+      entity.topic = topic;
+      delete entity.topic_id;
       if (entity.creator_id) {
         const user = await this.connection.getRepository(UserEntity).findOne({ where: { id: this.request.user.id, delete_flag: 0 } });
         entity.author = user;
