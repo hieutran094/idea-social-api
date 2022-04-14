@@ -15,14 +15,13 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { IdeaService } from './idea.service';
 import { AuthGuard } from 'src/modules/v1/auth/guard/auth.guard';
-import { RolesGuard } from 'src/modules/v1/auth/guard/role.guard';
 import { ApiTags, ApiConsumes } from '@nestjs/swagger';
 import { IdeaCreateDTO, IdeaUpdateDTO, IdeaListDTO } from './dto/idea.dto';
 import { FileService } from 'src/modules/v1/file/file.service';
 
 @Controller('api/v1/idea')
 @ApiTags('Idea')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard)
 export class IdeaController {
   constructor(private readonly service: IdeaService, private readonly fileService: FileService) {}
   @Get()

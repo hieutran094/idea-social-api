@@ -122,6 +122,8 @@ export class IdeaEntity {
   @OneToMany((type) => CommentEntity, (comment) => comment.idea)
   comments: CommentEntity[];
 
+  commentCount: number;
+
   @OneToOne(() => FileEntity, { onUpdate: 'CASCADE', onDelete: 'CASCADE' })
   @JoinColumn({ name: 'image_id' })
   image: FileEntity;
