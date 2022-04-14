@@ -21,8 +21,9 @@ import { IsEmail, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength,
 import { DepartmentEntity } from './department.entity';
 import { PasswordTransformer } from '../modules/v1/user/password.transformer';
 import { ERole } from 'src/enum/role.enum';
-import {TopicEntity } from "./topic.entity"
+import { TopicEntity } from './topic.entity';
 import { IdeaEntity } from './idea.entity';
+import { CommentEntity } from './comment.entity';
 
 @Entity('users')
 @Index(['id'], { unique: true })
@@ -100,11 +101,8 @@ export class UserEntity {
   @OneToMany((type) => IdeaEntity, (idea) => idea.author)
   ideas: IdeaEntity[];
 
-  // actions
-  @BeforeUpdate()
-  @BeforeInsert()
-  // tslint:disable-next-line: no-empty
-  private async validatePasswordConfirm() {}
+  @OneToMany((type) => CommentEntity, (comment) => this)
+  comments: CommentEntity[];
 
   @AfterLoad()
   setDepartmentId() {
@@ -120,6 +118,15 @@ export class UserEntity {
     const { id, created_at, user_name, email, role, department_id } = this;
     const token = this.getToken();
     return { id, user_name, email, role, department_id, created_at, token };
+  }
+
+  toPublicResponseObject() {
+    delete this.password_confirm;
+    delete this.password;
+    delete this.delete_flag;
+    delete this.created_at;
+    delete this.updated_at;
+    return this;
   }
 
   private getToken() {
