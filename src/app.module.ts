@@ -8,13 +8,25 @@ import { TopicModule } from './modules/v1/topic/topic.module';
 import { IdeaModule } from './modules/v1/idea/idea.module';
 import { FiledModule } from './modules/v1/file/file.module';
 import { CommentModule } from './modules/v1/comment/comment.module';
+import { ReportModule } from './modules/v1/report/report.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HttpExceptionFilter } from './shared/http-exception.filter';
 import { APP_FILTER } from '@nestjs/core';
 
 @Module({
-  imports: [DatabaseModule, MigrationModule, AuthModule, UserModule, DepartmentModule, TopicModule, IdeaModule, FiledModule, CommentModule],
+  imports: [
+    DatabaseModule,
+    MigrationModule,
+    AuthModule,
+    UserModule,
+    DepartmentModule,
+    TopicModule,
+    IdeaModule,
+    FiledModule,
+    CommentModule,
+    ReportModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
