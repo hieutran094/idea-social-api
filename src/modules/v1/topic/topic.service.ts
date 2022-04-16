@@ -28,14 +28,16 @@ export class TopicService extends BaseService<TopicEntity> {
     super(repo, request);
   }
   override async getOne(id: number): Promise<TopicEntity> {
-    return await this.repo
+    const topic = await this.repo
       .createQueryBuilder('topic')
       .leftJoinAndSelect('topic.creator', 'creator', 'creator.delete_flag = :deleteFlag')
       .leftJoinAndSelect('topic.image', 'image', 'image.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('topic.ideas', 'ideas', 'ideas.delete_flag = :deleteFlag', { deleteFlag: 0 })
+      .leftJoinAndSelect('topic.ideas', 'ideas', 'ideas.delete_flag = :deleteFlag')
+      .leftJoinAndSelect('ideas.image', 'topicImage', 'topicImage.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .where('topic.id = :id', { id })
       .andWhere('topic.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .getOne();
+    return topic;
   }
   override async search(query: TopicListDTO): Promise<any> {
     try {
