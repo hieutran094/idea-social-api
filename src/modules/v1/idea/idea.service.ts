@@ -97,8 +97,14 @@ export class IdeaService extends BaseService<IdeaEntity> {
     try {
       let topic;
       if (dto.topic_id) {
-        topic = await this.connection.getRepository(TopicEntity).findOne({ where: { id: dto.topic_id, delete_flag: 0 } });
-        if (!topic) throw new HttpException('Topic not found', HttpStatus.BAD_REQUEST);
+        topic = await this.connection
+          .getRepository(TopicEntity)
+          .createQueryBuilder('topic')
+          .where('topic.id = :topicId', { topicId: dto.topic_id })
+          .andWhere('topic.lock_date > CURRENT_TIMESTAMP')
+          .andWhere('topic.delete_flag = :deleteFlag', { deleteFlag: 0 })
+          .getOne();
+        if (!topic) throw new HttpException('Topic not found or closed. ', HttpStatus.BAD_REQUEST);
       }
       if (files && (files.image_id || files.document_id)) {
         const fileArr = [];
@@ -133,12 +139,6 @@ export class IdeaService extends BaseService<IdeaEntity> {
         const user = await this.connection.getRepository(UserEntity).findOne({ where: { id: this.request.user.id, delete_flag: 0 } });
         entity.author = user;
         delete entity.creator_id;
-      }
-      if (entity.topic_id) {
-        const topic = await this.connection.getRepository(TopicEntity).findOne({ where: { id: entity.topic_id, delete_flag: 0 } });
-        if (!topic) throw new HttpException('Topic not found', HttpStatus.BAD_REQUEST);
-        entity.topic = topic;
-        delete entity.topic_id;
       }
       await this.repo.save(entity);
       return { message: 'Created successfully' };
