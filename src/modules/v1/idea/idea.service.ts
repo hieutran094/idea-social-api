@@ -7,9 +7,10 @@ import { Repository, Like } from 'typeorm';
 import { REQUEST } from '@nestjs/core';
 import { BaseService } from 'src/common/base.service';
 import { plainToClass, plainToClassFromExist } from 'class-transformer';
-import { IdeaCreateDTO, IdeaUpdateDTO } from './dto/idea.dto';
+import { IdeaCreateDTO, IdeaUpdateDTO, IdeaListDTO } from './dto/idea.dto';
 import { EVote } from 'src/enum/vote.enum';
 import { FileService } from 'src/modules/v1/file/file.service';
+import { orderBy } from 'lodash';
 
 @Injectable()
 export class IdeaService extends BaseService<IdeaEntity> {
@@ -50,13 +51,14 @@ export class IdeaService extends BaseService<IdeaEntity> {
       .leftJoinAndSelect('idea.upVotes', 'upVotes')
       .leftJoinAndSelect('idea.downVotes', 'downVotes')
       .andWhere('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
+      .orderBy('idea.created_at', 'DESC')
       .getMany();
     if (data.length > 0) {
       data.map((e) => this.toResponseObject(e));
     }
     return data;
   }
-  override async search(query: any): Promise<any> {
+  override async search(query: IdeaListDTO): Promise<any> {
     try {
       const limit = Number(query.limit) || 10;
       const page = Number(query.page) || 1;
@@ -72,9 +74,15 @@ export class IdeaService extends BaseService<IdeaEntity> {
         .leftJoinAndSelect('idea.downVotes', 'downVotes')
         .where('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
         .skip(limit * (page - 1))
-        .take(limit)
-        .orderBy('idea.created_at', 'DESC')
-        .orderBy('comment.created_at', 'DESC');
+        .take(limit);
+      if (query.topicId) {
+        qb.andWhere('topic.id = :topicId', { topicId: query.topicId });
+      }
+      if (query.rand) {
+        qb.orderBy('RAND()');
+      } else {
+        qb.orderBy('idea.created_at', 'DESC');
+      }
       if (query.keyword) qb.andWhere({ title: Like(`%${query.keyword}%`) });
       const [data, total] = await qb.getManyAndCount();
       if (data.length > 0) {
@@ -155,15 +163,8 @@ export class IdeaService extends BaseService<IdeaEntity> {
   async upVote(id: number) {
     let idea = await this.repo
       .createQueryBuilder('idea')
-      .leftJoinAndSelect('idea.author', 'author', 'author.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('idea.topic', 'topic', 'topic.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('idea.image', 'image', 'image.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('idea.document', 'document', 'document.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('idea.comments', 'comment', 'comment.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('comment.creator', 'creator', 'creator.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .leftJoinAndSelect('idea.upVotes', 'upVotes')
       .leftJoinAndSelect('idea.downVotes', 'downVotes')
-      .leftJoinAndSelect('idea.comments', 'comments')
       .where('idea.id = :id', { id })
       .andWhere('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .getOne();
@@ -177,15 +178,8 @@ export class IdeaService extends BaseService<IdeaEntity> {
   async downVote(id: number) {
     let idea = await this.repo
       .createQueryBuilder('idea')
-      .leftJoinAndSelect('idea.author', 'author', 'author.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('idea.topic', 'topic', 'topic.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('idea.image', 'image', 'image.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('idea.document', 'document', 'document.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('idea.comments', 'comment', 'comment.delete_flag = :deleteFlag')
-      .leftJoinAndSelect('comment.creator', 'creator', 'creator.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .leftJoinAndSelect('idea.upVotes', 'upVotes')
       .leftJoinAndSelect('idea.downVotes', 'downVotes')
-      .leftJoinAndSelect('idea.comments', 'comments')
       .where('idea.id = :id', { id })
       .andWhere('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
       .getOne();
@@ -217,7 +211,10 @@ export class IdeaService extends BaseService<IdeaEntity> {
   private toResponseObject(idea: IdeaEntity) {
     idea.upVoteCount = idea.upVotes.length;
     idea.downVoteCount = idea.downVotes.length;
-    idea.commentCount = idea.comments.length;
+    if (idea.comments) {
+      idea.comments = orderBy(idea.comments, ['created_at'], ['desc']);
+      idea.commentCount = idea.comments.length;
+    }
     delete idea.upVotes;
     delete idea.downVotes;
     return idea;
