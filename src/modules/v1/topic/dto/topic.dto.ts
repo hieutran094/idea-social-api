@@ -1,7 +1,12 @@
-import { IsNotEmpty, IsString, IsOptional, IsDateString } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsDateString, IsNumberString, ValidateIf } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class TopicCreateDTO {
+  @ValidateIf((q) => q.image_id && q.image_id.trim() !== '')
+  @IsNumberString()
+  @ApiProperty({ type: 'string', format: 'binary', required: false })
+  image_id: string | object | null;
+
   @IsNotEmpty()
   @IsString()
   @ApiProperty()
@@ -34,6 +39,11 @@ export class TopicGetDTO {
 }
 
 export class TopicUpdateDTO {
+  @ValidateIf((q) => q.image_id && q.image_id.trim() !== '')
+  @IsNumberString()
+  @ApiProperty({ type: 'string', format: 'binary', required: false })
+  image_id: string | object | null;
+
   @IsOptional()
   @IsString()
   @ApiProperty({ required: false })

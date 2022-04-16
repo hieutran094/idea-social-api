@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { TopicService } from './topic.service';
 import { AuthGuard } from 'src/modules/v1/auth/guard/auth.guard';
 import { RolesGuard } from 'src/modules/v1/auth/guard/role.guard';
 import { Role } from 'src/modules/v1/auth/decorator/role.decorator';
 import { ERole } from 'src/enum/role.enum';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiConsumes } from '@nestjs/swagger';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { TopicCreateDTO, TopicUpdateDTO, TopicListDTO } from './dto/topic.dto';
 
 @Controller('api/v1/topic')
@@ -25,14 +26,18 @@ export class TopicController {
     return await this.service.getOne(id);
   }
   @Post()
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'image_id', maxCount: 1 }]))
+  @ApiConsumes('multipart/form-data')
   @Role(ERole.root, ERole.admin, ERole.qa)
-  async createOne(@Body() dto: TopicCreateDTO) {
-    return await this.service.createOne(dto);
+  async createOne(@UploadedFiles() files: { image_id?: any }, @Body() dto: TopicCreateDTO) {
+    return await this.service.createOne(files, dto);
   }
   @Put(':id')
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'image_id', maxCount: 1 }]))
+  @ApiConsumes('multipart/form-data')
   @Role(ERole.root, ERole.admin, ERole.qa)
-  async updateOne(@Param('id') id: number, @Body() dto: TopicUpdateDTO) {
-    return await this.service.updateOne(id, dto);
+  async updateOne(@Param('id') id: number, @UploadedFiles() files: { image_id?: any }, @Body() dto: TopicUpdateDTO) {
+    return await this.service.updateOne(id, files, dto);
   }
   @Delete(':id')
   @Role(ERole.root, ERole.admin, ERole.qa)
