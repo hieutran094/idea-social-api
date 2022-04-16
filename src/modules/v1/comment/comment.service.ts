@@ -36,9 +36,7 @@ export class CommentService extends BaseService<CommentEntity> {
         entity.idea = idea;
         delete entity.idea_id;
       }
-      console.log(entity);
-      await this.repo.save(entity);
-      return { message: 'Created successfully' };
+      return await this.repo.save(entity);
     } catch (e) {
       if (e instanceof HttpException) throw e;
       throw new HttpException(e, HttpStatus.BAD_REQUEST);
