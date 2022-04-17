@@ -1,9 +1,9 @@
 {
   "type": "mysql",
-  "host": "localhost",
+  "host": "idea-social.cnqnknxdzmyl.ap-southeast-1.rds.amazonaws.com",
   "port": 3306,
   "username": "root",
-  "password": "root",
+  "password": "fUpjh0tNOO3D9fek",
   "database": "basic",
   "entities": ["src/**/*.entity{.ts,.js}"],
   "migrationsRun": true,
