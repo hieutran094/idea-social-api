@@ -8,7 +8,7 @@ import {
   Index,
   JoinColumn,
   JoinTable,
-  ManyToMany,
+  OneToOne,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -24,6 +24,7 @@ import { ERole } from 'src/enum/role.enum';
 import { TopicEntity } from './topic.entity';
 import { IdeaEntity } from './idea.entity';
 import { CommentEntity } from './comment.entity';
+import { FileEntity } from './file.entity';
 
 @Entity('users')
 @Index(['id'], { unique: true })
@@ -71,6 +72,12 @@ export class UserEntity {
   @Column('int', { name: 'department_id', nullable: true })
   department_id: number | null;
 
+  @ApiProperty()
+  @IsOptional()
+  @IsInt()
+  @Column('int', { name: 'image_id', nullable: true })
+  image_id: number | null;
+
   @IsOptional()
   @IsInt()
   @IsIn([1, 2, 3, 9])
@@ -86,6 +93,10 @@ export class UserEntity {
 
   @Column('tinyint', { name: 'delete_flag', width: 1, default: 0 })
   delete_flag: boolean;
+
+  @OneToOne(() => FileEntity, { onUpdate: 'CASCADE', onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'image_id' })
+  image: FileEntity;
 
   @ManyToOne((type) => DepartmentEntity, {
     cascade: true,
@@ -115,9 +126,9 @@ export class UserEntity {
   }
 
   toResponseObject() {
-    const { id, created_at, user_name, email, role, department_id } = this;
+    const { id, created_at, user_name, email, role, department_id, image_id, image } = this;
     const token = this.getToken();
-    return { id, user_name, email, role, department_id, created_at, token };
+    return { id, user_name, email, role, department_id, created_at, token, image_id, image };
   }
 
   toPublicResponseObject() {

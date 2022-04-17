@@ -51,6 +51,9 @@ export class FileEntity {
   @Column('tinyint', { name: 'delete_flag', width: 1, default: 0 })
   delete_flag: number;
 
+  @OneToOne(() => UserEntity, (item) => item.image, { cascade: true, onUpdate: 'CASCADE', onDelete: 'CASCADE' })
+  user_image: UserEntity;
+
   @OneToOne(() => TopicEntity, (item) => item.image, { cascade: true, onUpdate: 'CASCADE', onDelete: 'CASCADE' })
   topic_image: TopicEntity;
 
