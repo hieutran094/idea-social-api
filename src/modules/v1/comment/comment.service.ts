@@ -1,4 +1,5 @@
 import { Injectable, Inject, HttpException, HttpStatus, InternalServerErrorException } from '@nestjs/common';
+import { MailerService } from '@nestjs-modules/mailer';
 import { CommentEntity } from 'src/entities/comment.entity';
 import { UserEntity } from 'src/entities/user.entity';
 import { IdeaEntity } from 'src/entities/idea.entity';
@@ -11,7 +12,11 @@ import { CommentCreateDTO, CommentUpdateDTO, CommentListDTO } from './dto/commen
 
 @Injectable()
 export class CommentService extends BaseService<CommentEntity> {
-  constructor(@InjectRepository(CommentEntity) repo: Repository<CommentEntity>, @Inject(REQUEST) protected readonly request) {
+  constructor(
+    @InjectRepository(CommentEntity) repo: Repository<CommentEntity>,
+    @Inject(REQUEST) protected readonly request,
+    private readonly mailerService: MailerService,
+  ) {
     super(repo, request);
   }
   async createOne(dto: CommentCreateDTO): Promise<CommentEntity | any> {
@@ -27,12 +32,24 @@ export class CommentService extends BaseService<CommentEntity> {
         const idea = await this.connection
           .getRepository(IdeaEntity)
           .createQueryBuilder('idea')
+          .leftJoinAndSelect('idea.author', 'author', 'author.delete_flag = :deleteFlag')
           .leftJoinAndSelect('idea.topic', 'topic', 'topic.close_date > CURRENT_TIMESTAMP')
           .where('idea.id = :ideaId', { ideaId: entity.idea_id })
           .andWhere('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
           .getOne();
         if (!idea) throw new HttpException('Idea not found', HttpStatus.BAD_REQUEST);
         if (!idea.topic) throw new HttpException('Cannot comment to idea in closed topic.', HttpStatus.BAD_REQUEST);
+        await this.mailerService.sendMail({
+          from: process.env.MAIL_FROM,
+          to: idea.author.email,
+          subject: `New comment to [${idea.title}]`,
+          template: __dirname + '/../../../mailer/newComment',
+          context: {
+            author: idea.author.user_name,
+            comment: entity.comment,
+            commentAuthor: entity.creator.user_name,
+          },
+        });
         entity.idea = idea;
         delete entity.idea_id;
       }
