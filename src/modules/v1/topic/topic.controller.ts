@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, UseInterceptors, UploadedFiles, Res } from '@nestjs/common';
 import { TopicService } from './topic.service';
 import { AuthGuard } from 'src/modules/v1/auth/guard/auth.guard';
 import { RolesGuard } from 'src/modules/v1/auth/guard/role.guard';
@@ -20,6 +20,10 @@ export class TopicController {
   @Get('/search')
   async search(@Query() query: TopicListDTO) {
     return await this.service.search(query);
+  }
+  @Get('/:id/download')
+  async download(@Param('id') id: number, @Res() res: any) {
+    return await this.service.download(id, res);
   }
   @Get(':id')
   async getOne(@Param('id') id: number) {

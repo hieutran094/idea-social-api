@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase */
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import {  Connection, getConnection,  } from 'typeorm';
+import { Connection, getConnection } from 'typeorm';
 
 @Injectable()
 export class MigrationService {

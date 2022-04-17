@@ -44,7 +44,7 @@ export class IdeaController {
   )
   @ApiConsumes('multipart/form-data')
   async createOne(@UploadedFiles() files: { document_id?: any; image_id?: any }, @Body() dto: IdeaCreateDTO) {
-    return await this.service.createOne(files,dto);
+    return await this.service.createOne(files, dto);
   }
 
   @Put(':id')
