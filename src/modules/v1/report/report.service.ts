@@ -17,7 +17,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { REQUEST } from '@nestjs/core';
 import { BaseService } from 'src/common/base.service';
-import {  groupBy } from 'lodash';
+import { groupBy } from 'lodash';
 import * as moment from 'moment';
 
 @Injectable()

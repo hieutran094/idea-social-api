@@ -6,10 +6,11 @@ import { TopicEntity } from 'src/entities/topic.entity';
 import { FileService } from 'src/modules/v1/file/file.service';
 import { UploadService } from 'src/common/upload.service';
 import { FileEntity } from 'src/entities/file.entity';
+import { ExportService } from 'src/common/export.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([TopicEntity, FileEntity])],
   controllers: [TopicController],
-  providers: [TopicService, FileService, UploadService],
+  providers: [TopicService, FileService, UploadService, ExportService],
 })
 export class TopicModule {}

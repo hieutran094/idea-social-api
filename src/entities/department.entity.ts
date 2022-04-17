@@ -5,7 +5,7 @@ import { UserEntity } from './user.entity';
 
 @Entity('departments')
 @Index(['id'], { unique: true })
-export class DepartmentEntity{
+export class DepartmentEntity {
   @IsEmpty()
   @PrimaryGeneratedColumn({ type: 'int', name: 'id' })
   id: number;
