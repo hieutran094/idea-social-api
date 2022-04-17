@@ -17,8 +17,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { REQUEST } from '@nestjs/core';
 import { BaseService } from 'src/common/base.service';
-import { TopicCreateDTO, TopicUpdateDTO, TopicListDTO } from './dto/report.dto';
-import { cloneDeep, groupBy } from 'lodash';
+import {  groupBy } from 'lodash';
+import * as moment from 'moment';
 
 @Injectable()
 export class ReportService extends BaseService<TopicEntity> {
@@ -49,26 +49,19 @@ export class ReportService extends BaseService<TopicEntity> {
         };
         return data;
       });
-      return { totalTopic, totalIdea: total, totalComment, totalUser, chartDepartmentIdea };
-    } catch (e) {
-      throw new InternalServerErrorException(e);
-    }
-  }
-  override async search(query: TopicListDTO): Promise<any> {
-    try {
-      const limit = Number(query.limit) || 10;
-      const page = Number(query.page) || 1;
-      const qb = this.repo
-        .createQueryBuilder('topic')
-        .leftJoinAndSelect('topic.ideas', 'ideas', 'ideas.delete_flag = :deleteFlag', { deleteFlag: 0 })
-        .leftJoinAndSelect('topic.creator', 'creator', 'creator.delete_flag = :deleteFlag')
-        .leftJoinAndSelect('topic.image', 'image', 'image.delete_flag = :deleteFlag')
-        .where('topic.delete_flag = :deleteFlag', { deleteFlag: 0 })
-        .skip(limit * (page - 1))
-        .take(limit);
-      if (query.keyword) qb.andWhere({ title: Like(`%${query.keyword}%`) });
-      const [data, total] = await qb.getManyAndCount();
-      return this.paginateResponse([data, total], page, limit);
+      const rawIdeaDay = groupBy(
+        data.map((item) => {
+          const data = { ...item, created_at: '' };
+          data.created_at = moment(item.created_at).format('DD/MM/YYYY');
+          return data;
+        }),
+        'created_at',
+      );
+      const chartIdeaByDate = {
+        labels: Object.keys(rawIdeaDay),
+        data: Object.values(rawIdeaDay).map((item) => item.length),
+      };
+      return { totalTopic, totalIdea: total, totalComment, totalUser, chartDepartmentIdea, chartIdeaByDate };
     } catch (e) {
       throw new InternalServerErrorException(e);
     }
