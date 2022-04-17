@@ -42,10 +42,12 @@ export class CommentService extends BaseService<CommentEntity> {
         await this.mailerService.sendMail({
           from: process.env.MAIL_FROM,
           to: idea.author.email,
-          subject: 'New comment to your post',
+          subject: `New comment to [${idea.title}]`,
           template: __dirname + '/../../../mailer/newComment',
           context: {
-            tokenRoute: 'http://abc.com',
+            author: idea.author.user_name,
+            comment: entity.comment,
+            commentAuthor: entity.creator.user_name,
           },
         });
         entity.idea = idea;
