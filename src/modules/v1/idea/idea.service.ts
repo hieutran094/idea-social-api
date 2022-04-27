@@ -58,6 +58,29 @@ export class IdeaService extends BaseService<IdeaEntity> {
     }
     return data;
   }
+  async topView(): Promise<any[]> {
+    let data = await this.repo
+      .createQueryBuilder('idea')
+      .leftJoinAndSelect('idea.author', 'author', 'author.delete_flag = :deleteFlag')
+      .leftJoinAndSelect('idea.image', 'image', 'image.delete_flag = :deleteFlag')
+      .leftJoinAndSelect('idea.document', 'document', 'document.delete_flag = :deleteFlag')
+      .leftJoinAndSelect('idea.comments', 'comment', 'comment.delete_flag = :deleteFlag')
+      .leftJoinAndSelect('comment.creator', 'creator', 'creator.delete_flag = :deleteFlag', { deleteFlag: 0 })
+      .leftJoinAndSelect('idea.upVotes', 'upVotes')
+      .leftJoinAndSelect('idea.downVotes', 'downVotes')
+      .leftJoinAndSelect('idea.comments', 'comments')
+      .andWhere('idea.delete_flag = :deleteFlag', { deleteFlag: 0 })
+      .getMany();
+    let raw;
+    if (data.length > 0) {
+      raw = data.map((e) => {
+        const dt = { ...this.toResponseObject(e), score: 0 };
+        dt.score = dt.upVoteCount + dt.downVoteCount;
+        return dt;
+      });
+    }
+    return orderBy(raw, ['score'], ['desc']).slice(0, 5);
+  }
   override async search(query: IdeaListDTO): Promise<any> {
     try {
       const limit = Number(query.limit) || 10;
@@ -79,8 +102,9 @@ export class IdeaService extends BaseService<IdeaEntity> {
         .take(limit);
       if (query.topicId) {
         qb.andWhere('topic.id = :topicId', { topicId: query.topicId });
-      }
-      if (query.rand) {
+      } else if (query.id) {
+        qb.andWhere('idea.id = :ideaId', { ideaId: query.id });
+      } else if (query.rand) {
         qb.orderBy('RAND()');
       } else {
         qb.orderBy('idea.created_at', 'DESC');

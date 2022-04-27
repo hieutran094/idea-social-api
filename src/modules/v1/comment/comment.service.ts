@@ -9,6 +9,7 @@ import { REQUEST } from '@nestjs/core';
 import { BaseService } from 'src/common/base.service';
 import { plainToClass, plainToClassFromExist } from 'class-transformer';
 import { CommentCreateDTO, CommentUpdateDTO, CommentListDTO } from './dto/comment.dto';
+import { ERole } from 'src/enum/role.enum';
 
 @Injectable()
 export class CommentService extends BaseService<CommentEntity> {
@@ -39,17 +40,18 @@ export class CommentService extends BaseService<CommentEntity> {
           .getOne();
         if (!idea) throw new HttpException('Idea not found', HttpStatus.BAD_REQUEST);
         if (!idea.topic) throw new HttpException('Cannot comment to idea in closed topic.', HttpStatus.BAD_REQUEST);
-        await this.mailerService.sendMail({
-          from: process.env.MAIL_FROM,
-          to: idea.author.email,
-          subject: `New comment to [${idea.title}]`,
-          template: __dirname + '/../../../mailer/newComment',
-          context: {
-            author: idea.author.user_name,
-            comment: entity.comment,
-            commentAuthor: entity.creator.user_name,
-          },
-        });
+        if (idea.author.role !== ERole.root)
+          await this.mailerService.sendMail({
+            from: process.env.MAIL_FROM,
+            to: idea.author.email,
+            subject: `New comment to [${idea.title}]`,
+            template: __dirname + '/../../../mailer/newComment',
+            context: {
+              author: idea.author.user_name,
+              comment: entity.comment,
+              commentAuthor: entity.creator.user_name,
+            },
+          });
         entity.idea = idea;
         delete entity.idea_id;
       }

@@ -37,6 +37,7 @@ export class IdeaListDTO {
   limit: number;
   page: number;
   topicId?: number;
+  id?: number;
   rand?: boolean;
   keyword?: string;
 }

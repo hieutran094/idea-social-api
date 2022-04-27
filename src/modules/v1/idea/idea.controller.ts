@@ -31,6 +31,10 @@ export class IdeaController {
   async search(@Query() query: IdeaListDTO) {
     return await this.service.search(query);
   }
+  @Get('/topview')
+  async topView() {
+    return await this.service.topView();
+  }
   @Get(':id')
   async getOne(@Param('id') id: number) {
     return await this.service.getOne(id);
